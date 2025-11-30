@@ -16,8 +16,39 @@ defmodule Inky.Display do
             accent: :black,
             luts: <<>>
 
-  @spec spec_for(:phat_ssd1608 | :phat | :what, :black | :red | :yellow) :: Inky.Display.t()
+  @spec spec_for(:phat_ssd1608 | :phat | :what | :waveshare_2_13_v2 | :waveshare_2_13_v3, :black | :red | :yellow) ::
+          Inky.Display.t()
   def spec_for(type, accent \\ :black)
+
+  def spec_for(type = :waveshare_2_13_v3, accent) do
+    # Waveshare 2.13" V3 tri-color display (black/white/red)
+    # Resolution: 212 x 104 pixels (landscape)
+    # Details are specified in `Inky.HAL.Waveshare2in13V3`
+    %__MODULE__{
+      type: type,
+      width: 212,
+      height: 104,
+      packed_dimensions: %{},
+      rotation: -90,
+      accent: accent,
+      luts: <<>>
+    }
+  end
+
+  def spec_for(type = :waveshare_2_13_v2, accent) do
+    # Waveshare 2.13" V2 display with SSD1675A driver
+    # Resolution: 122 x 250 pixels, Black/White
+    # Details are specified in `Inky.HAL.Waveshare2in13V2`
+    %__MODULE__{
+      type: type,
+      width: 122,
+      height: 250,
+      packed_dimensions: %{},
+      rotation: -90,
+      accent: accent,
+      luts: <<>>
+    }
+  end
 
   def spec_for(type = :phat_ssd1608, accent) do
     # Keep it minimal. Details are specified in `Inky.HAL.PhatSSD1608`.

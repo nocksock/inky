@@ -115,14 +115,19 @@ defmodule Inky do
   @doc """
   Shows the internally buffered pixels on the display.
 
-  If `opts[:async]` is `true`, the call will be asynchronous.
+  ## Options
+
+  - `:async` - If `true`, the call will be asynchronous.
+  - `:refresh` - `:full` (default) or `:partial` for fast refresh (Waveshare displays only).
+    Partial refresh is faster (~0.3s vs ~2s) but should not be used continuously.
+    A full refresh is automatically performed after 10 partial refreshes.
 
   Returns `:ok`.
   """
   def show(server, opts \\ %{}) do
     if opts[:async] === true,
-      do: GenServer.cast(server, :push),
-      else: GenServer.call(server, :push, :infinity)
+      do: GenServer.cast(server, {:push, opts}),
+      else: GenServer.call(server, {:push, opts}, :infinity)
   end
 
   @doc """
@@ -145,11 +150,24 @@ defmodule Inky do
     hal_mod =
       case type do
         :phat_ssd1608 -> opts[:hal_mod] || Inky.HAL.PhatSSD1608
+        :waveshare_2_13_v2 -> opts[:hal_mod] || Inky.HAL.Waveshare2in13V2
+        :waveshare_2_13_v3 -> opts[:hal_mod] || Inky.HAL.Waveshare2in13V3
         _ -> opts[:hal_mod] || RpiHAL
       end
 
     display = Display.spec_for(type, accent)
-    hal_state = hal_mod.init(%{display: display})
+
+    # Pass io_args to HAL for custom pin mappings
+    hal_init_args = %{display: display}
+
+    hal_init_args =
+      if opts[:io_args] do
+        Map.put(hal_init_args, :io_args, opts[:io_args])
+      else
+        hal_init_args
+      end
+
+    hal_state = hal_mod.init(hal_init_args)
 
     {:ok,
      %State{
@@ -167,8 +185,8 @@ defmodule Inky do
     state = do_set_pixels(arg, opts, state)
 
     case opts[:push] || :await do
-      :await -> push(:await, state) |> reply(:nowait, state)
-      :once -> push(:once, state) |> handle_push(state)
+      :await -> push(:await, state, opts) |> reply(:nowait, state)
+      :once -> push(:once, state, opts) |> handle_push(state)
       :skip when wt == :nowait -> reply(:ok, :nowait, state)
       :skip -> reply_timeout(wt, state)
       {:timeout, :await} -> reply_timeout(:await, state)
@@ -177,38 +195,49 @@ defmodule Inky do
     end
   end
 
+  def handle_call({:push, opts}, _from, state) do
+    {:reply, push(:await, state, opts), state}
+  end
+
+  # Legacy support for :push without opts
   def handle_call(:push, _from, state) do
-    {:reply, push(:await, state), state}
+    {:reply, push(:await, state, %{}), state}
   end
 
   def handle_call(request, from, state) do
-    Logger.warn("Dropping unexpected call #{inspect(request)} from #{inspect(from)}")
+    Logger.warning("Dropping unexpected call #{inspect(request)} from #{inspect(from)}")
     {:reply, :ok, state}
   end
 
   # GenServer casts
 
   @impl GenServer
+  def handle_cast({:push, opts}, state) do
+    push(:await, state, opts)
+    {:noreply, state}
+  end
+
+  # Legacy support for :push without opts
   def handle_cast(:push, state) do
-    push(:await, state)
+    push(:await, state, %{})
     {:noreply, state}
   end
 
   def handle_cast(request, state) do
-    Logger.warn("Dropping unexpected cast #{inspect(request)}")
+    Logger.warning("Dropping unexpected cast #{inspect(request)}")
     {:noreply, state}
   end
 
   # GenServer messages
 
   @impl GenServer
-  def handle_info(:timeout, state) do
-    case push(state.wait_type, state) do
+  def handle_info(:timeout, state = %State{}) do
+    case push(state.wait_type, state, %{}) do
       {:error, reason} -> Logger.error("Failed to push graph on timeout: #{inspect(reason)}")
       :ok -> :ok
     end
 
-    {:noreply, %State{state | wait_type: :nowait}}
+    {:noreply, %{state | wait_type: :nowait}}
   end
 
   def handle_info(msg, state) do
@@ -222,8 +251,8 @@ defmodule Inky do
 
   # Set pixels
 
-  defp do_set_pixels(arg, opts, state) do
-    %State{
+  defp do_set_pixels(arg, opts, state = %State{}) do
+    %{
       state
       | pixels: update_pixels(arg, state),
         border: pick_border(opts[:border], state)
@@ -275,20 +304,40 @@ defmodule Inky do
 
   defp handle_push(response, state), do: reply(response, :nowait, state)
 
-  defp reply(response, timeout_policy, state) do
-    {:reply, response, %State{state | wait_type: timeout_policy}}
+  defp reply(response, timeout_policy, state = %State{}) do
+    {:reply, response, %{state | wait_type: timeout_policy}}
   end
 
-  defp reply_timeout(response \\ :ok, timeout_policy, state) do
-    {:reply, response, %State{state | wait_type: timeout_policy}, @push_timeout}
+  defp reply_timeout(response \\ :ok, timeout_policy, state = %State{}) do
+    {:reply, response, %{state | wait_type: timeout_policy}, @push_timeout}
   end
 
   # Internals
 
-  defp push(push_policy, state) when not (push_policy in [:await, :once]), do: push(:await, state)
+  defp push(push_policy, state, opts)
 
-  defp push(push_policy, state) do
+  defp push(push_policy, state, opts) when not (push_policy in [:await, :once]),
+    do: push(:await, state, opts)
+
+  defp push(push_policy, state, opts) do
     hm = state.hal_mod
-    hm.handle_update(state.pixels, state.border, push_policy, state.hal_state)
+    hal_opts = build_hal_opts(opts)
+
+    # Check if HAL supports extended options (5-arity handle_update)
+    if function_exported?(hm, :handle_update, 5) do
+      hm.handle_update(state.pixels, state.border, push_policy, state.hal_state, hal_opts)
+    else
+      hm.handle_update(state.pixels, state.border, push_policy, state.hal_state)
+    end
+  end
+
+  defp build_hal_opts(opts) when is_map(opts) do
+    opts
+    |> Map.to_list()
+    |> Enum.filter(fn {k, _v} -> k in [:refresh, :max_partial] end)
+  end
+
+  defp build_hal_opts(opts) when is_list(opts) do
+    Keyword.take(opts, [:refresh, :max_partial])
   end
 end

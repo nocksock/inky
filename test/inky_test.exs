@@ -52,22 +52,36 @@ defmodule Inky.InkyTest do
       assert state.pixels == %{{1, 2} => :white, {0, 0} => :black, {2, 3} => :red}
     end
 
-    # TODO: painter tests
+    test "set_pixels with painter function", %{inited_state: state} do
+      TestHAL.on_update(:ok)
+
+      painter = fn x, y, _w, _h, _pixels ->
+        if rem(x + y, 2) == 0, do: :black, else: :white
+      end
+
+      {:reply, :ok, state} = Inky.handle_call({:set_pixels, painter, %{}}, :from, state)
+      TestHAL.assert_expectations()
+
+      assert state.pixels[{0, 0}] == :black
+      assert state.pixels[{1, 0}] == :white
+      assert state.pixels[{0, 1}] == :white
+      assert state.pixels[{1, 1}] == :black
+    end
   end
 
   describe "Inky timeout" do
-    test ":once when device ready", %{inited_state: is} do
+    test ":once when device ready", %{inited_state: %Inky.State{} = is} do
       TestHAL.on_update(:ok)
-      is = %Inky.State{is | wait_type: :once}
+      is = %{is | wait_type: :once}
       {:noreply, state} = Inky.handle_info(:timeout, is)
       TestHAL.assert_expectations()
       assert state.wait_type == :nowait
       assert TestUtil.gather_messages() == [{TestHAL, {:update, :ok}}]
     end
 
-    test ":once when device busy", %{inited_state: is} do
+    test ":once when device busy", %{inited_state: %Inky.State{} = is} do
       TestHAL.on_update(:busy)
-      is = %Inky.State{is | wait_type: :once}
+      is = %{is | wait_type: :once}
 
       capture_log(fn ->
         {:noreply, state} = Inky.handle_info(:timeout, is)
@@ -77,9 +91,9 @@ defmodule Inky.InkyTest do
       end)
     end
 
-    test ":await", %{inited_state: is} do
+    test ":await", %{inited_state: %Inky.State{} = is} do
       TestHAL.on_update(:ok)
-      is = %Inky.State{is | wait_type: :await}
+      is = %{is | wait_type: :await}
       {:noreply, state} = Inky.handle_info(:timeout, is)
       TestHAL.assert_expectations()
       assert state.wait_type == :nowait
