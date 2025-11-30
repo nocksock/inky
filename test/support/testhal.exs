@@ -9,7 +9,7 @@ defmodule Inky.TestHAL do
 
   def on_update(result) when result in [:ok, :busy], do: Process.put(:update, result)
 
-  def assert_expectations() do
+  def assert_expectations do
     case Process.get(:update, :not_set) do
       [] -> :ok
       val when val == :ok or val == :busy -> :ok
@@ -34,7 +34,7 @@ defmodule Inky.TestHAL do
   # Internals
   #
 
-  defp do_handle_update() do
+  defp do_handle_update do
     case Process.get(:update, :not_set) do
       :not_set ->
         arg_err("Update called unexpectedly!")

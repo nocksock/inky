@@ -59,7 +59,7 @@ defmodule Inky.RpiHALTest do
       :ok = RpiHAL.handle_update(ctx.pixels, display.accent, :await, state)
 
       # assert
-      assert_received {:init, init_args}
+      assert_received {:init, _io_args}
       assert TestIO.assert_expectations() == :ok
       spec = load_spec("data/success1.dat", __DIR__)
       mailbox = gather_messages()
@@ -84,21 +84,21 @@ defmodule Inky.RpiHALTest do
       :ok = RpiHAL.handle_update(ctx.pixels, display.accent, :await, state)
 
       # assert
-      assert_received {:init, init_args}
+      assert_received {:init, _io_args}
       assert TestIO.assert_expectations() == :ok
       spec = load_spec("data/success2.dat", __DIR__)
       mailbox = gather_messages()
       assert check(spec, mailbox) == {:ok, 40}
     end
 
-    defp get_border_command() do
+    defp get_border_command do
       Enum.filter(gather_messages(), fn
         {:send_command, {0x3C, _}} -> true
         _ -> false
       end)
     end
 
-    defp get_vhs_and_vhl_voltage_command() do
+    defp get_vhs_and_vhl_voltage_command do
       Enum.filter(gather_messages(), fn
         {:send_command, {0x04, _}} -> true
         _ -> false

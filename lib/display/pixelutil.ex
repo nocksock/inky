@@ -57,9 +57,9 @@ defmodule Inky.PixelUtil do
   end
 
   defp rotated_dimension(width, _height, {:x, 1}), do: 0..(width - 1)
-  defp rotated_dimension(width, _height, {:x, -1}), do: (width - 1)..0
+  defp rotated_dimension(width, _height, {:x, -1}), do: (width - 1)..0//-1
   defp rotated_dimension(_width, height, {:y, 1}), do: 0..(height - 1)
-  defp rotated_dimension(_width, height, {:y, -1}), do: (height - 1)..0
+  defp rotated_dimension(_width, height, {:y, -1}), do: (height - 1)..0//-1
 
   defp do_pixels_to_bits({i_range, j_range}, pixel_picker, cmap) do
     for i <- i_range,

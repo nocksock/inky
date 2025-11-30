@@ -6,7 +6,7 @@ defmodule Inky.TestIO do
   """
   @behaviour InkyIO
 
-  def assert_expectations() do
+  def assert_expectations do
     case Process.get(:read_busy, :not_set) do
       [] -> :ok
       b when is_integer(b) -> :ok
@@ -44,7 +44,7 @@ defmodule Inky.TestIO do
 
   # Internals
 
-  defp do_handle_read_busy() do
+  defp do_handle_read_busy do
     case Process.get(:read_busy, :not_set) do
       :not_set ->
         raise(ArgumentError, message: "Tried to read busy without any mock values left")

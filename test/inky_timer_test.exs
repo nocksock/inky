@@ -44,9 +44,9 @@ defmodule Inky.InkyTimerTest do
       assert TestUtil.gather_messages() == [{TestHAL, {:update, :ok}}]
     end
 
-    test ":once timer set", %{inited_state: is} do
+    test ":once timer set", %{inited_state: %Inky.State{} = is} do
       TestHAL.on_update(:ok)
-      is = %Inky.State{is | wait_type: :once}
+      is = %{is | wait_type: :once}
 
       {:reply, :ok, state} = Inky.handle_call({:set_pixels, %{}, %{push: :await}}, :from, is)
 
@@ -54,9 +54,9 @@ defmodule Inky.InkyTimerTest do
       assert TestUtil.gather_messages() == [{TestHAL, {:update, :ok}}]
     end
 
-    test ":await timer set", %{inited_state: is} do
+    test ":await timer set", %{inited_state: %Inky.State{} = is} do
       TestHAL.on_update(:ok)
-      is = %Inky.State{is | wait_type: :await}
+      is = %{is | wait_type: :await}
 
       {:reply, :ok, state} = Inky.handle_call({:set_pixels, %{}, %{push: :await}}, :from, is)
 
@@ -77,9 +77,9 @@ defmodule Inky.InkyTimerTest do
       assert TestUtil.gather_messages() == [{TestHAL, {:update, :ok}}]
     end
 
-    test ":once timer", %{inited_state: is} do
+    test ":once timer", %{inited_state: %Inky.State{} = is} do
       TestHAL.on_update(:ok)
-      is = %Inky.State{is | wait_type: :once}
+      is = %{is | wait_type: :once}
 
       {:reply, :ok, state} = Inky.handle_call({:set_pixels, %{}, %{push: :once}}, :from, is)
 
@@ -87,9 +87,9 @@ defmodule Inky.InkyTimerTest do
       assert TestUtil.gather_messages() == [{TestHAL, {:update, :ok}}]
     end
 
-    test ":await timer", %{inited_state: is} do
+    test ":await timer", %{inited_state: %Inky.State{} = is} do
       TestHAL.on_update(:ok)
-      is = %Inky.State{is | wait_type: :await}
+      is = %{is | wait_type: :await}
 
       {:reply, :ok, state} = Inky.handle_call({:set_pixels, %{}, %{push: :once}}, :from, is)
 
@@ -111,9 +111,9 @@ defmodule Inky.InkyTimerTest do
       assert TestUtil.gather_messages() == [{TestHAL, {:update, {:error, :device_busy}}}]
     end
 
-    test ":once timer", %{inited_state: is} do
+    test ":once timer", %{inited_state: %Inky.State{} = is} do
       TestHAL.on_update(:busy)
-      is = %Inky.State{is | wait_type: :once}
+      is = %{is | wait_type: :once}
 
       {:reply, {:error, :device_busy}, state} =
         Inky.handle_call({:set_pixels, %{}, %{push: :once}}, :from, is)
@@ -122,9 +122,9 @@ defmodule Inky.InkyTimerTest do
       assert TestUtil.gather_messages() == [{TestHAL, {:update, {:error, :device_busy}}}]
     end
 
-    test ":await timer", %{inited_state: is} do
+    test ":await timer", %{inited_state: %Inky.State{} = is} do
       TestHAL.on_update(:busy)
-      is = %Inky.State{is | wait_type: :await}
+      is = %{is | wait_type: :await}
 
       {:reply, {:error, :device_busy}, state, _timeout} =
         Inky.handle_call({:set_pixels, %{}, %{push: :once}}, :from, is)
@@ -144,8 +144,8 @@ defmodule Inky.InkyTimerTest do
       assert TestUtil.gather_messages() == []
     end
 
-    test ":once timer set", %{inited_state: is} do
-      is = %Inky.State{is | wait_type: :once}
+    test ":once timer set", %{inited_state: %Inky.State{} = is} do
+      is = %{is | wait_type: :once}
 
       {:reply, :ok, state, _timeout} =
         Inky.handle_call({:set_pixels, %{}, %{push: :skip}}, :from, is)
@@ -154,8 +154,8 @@ defmodule Inky.InkyTimerTest do
       assert TestUtil.gather_messages() == []
     end
 
-    test ":await timer set", %{inited_state: is} do
-      is = %Inky.State{is | wait_type: :await}
+    test ":await timer set", %{inited_state: %Inky.State{} = is} do
+      is = %{is | wait_type: :await}
 
       {:reply, :ok, state, _timeout} =
         Inky.handle_call({:set_pixels, %{}, %{push: :skip}}, :from, is)
@@ -184,8 +184,8 @@ defmodule Inky.InkyTimerTest do
       assert TestUtil.gather_messages() == []
     end
 
-    test ":once timer not dropped", %{inited_state: is} do
-      is = %Inky.State{is | wait_type: :once}
+    test ":once timer not dropped", %{inited_state: %Inky.State{} = is} do
+      is = %{is | wait_type: :once}
 
       {:reply, :ok, state, _timeout} =
         Inky.handle_call({:set_pixels, %{}, %{push: {:timeout, :once}}}, :from, is)
@@ -194,8 +194,8 @@ defmodule Inky.InkyTimerTest do
       assert TestUtil.gather_messages() == []
     end
 
-    test ":await timer not overridden by :once", %{inited_state: is} do
-      is = %Inky.State{is | wait_type: :await}
+    test ":await timer not overridden by :once", %{inited_state: %Inky.State{} = is} do
+      is = %{is | wait_type: :await}
 
       {:reply, :ok, state, _timeout} =
         Inky.handle_call({:set_pixels, %{}, %{push: {:timeout, :once}}}, :from, is)
@@ -204,8 +204,8 @@ defmodule Inky.InkyTimerTest do
       assert TestUtil.gather_messages() == []
     end
 
-    test ":once timer replaced by :await", %{inited_state: is} do
-      is = %Inky.State{is | wait_type: :once}
+    test ":once timer replaced by :await", %{inited_state: %Inky.State{} = is} do
+      is = %{is | wait_type: :once}
 
       {:reply, :ok, state, _timeout} =
         Inky.handle_call({:set_pixels, %{}, %{push: {:timeout, :await}}}, :from, is)
